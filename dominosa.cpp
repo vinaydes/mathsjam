@@ -138,6 +138,7 @@ void print_rows(RowState* rows, int len) {
 void write_svg(RowState* rows, int M, int N, std::string filename) {
 std::string prefix_t = R"(<?xml version="1.0" encoding="UTF-8"?>
 <svg width="1000" height="1000" xmlns="http://www.w3.org/2000/svg">
+  <rect width="100%" height="100%" fill="#f0f0f0"/>
   <rect x="10" y="10" width="800" height="700" fill="none" stroke="gray" stroke-width="1" />
   <line x1="10" y1="110" x2="810" y2="110" stroke="gray" stroke-width="1" /> 
   <line x1="10" y1="210" x2="810" y2="210" stroke="gray" stroke-width="1" /> 
@@ -174,6 +175,14 @@ std::string prefix_t = R"(<?xml version="1.0" encoding="UTF-8"?>
       tiles += tile;
     }
   }
+  /*std::string path = "<text x=\"10\" y=\"750\" fill=\"blue\" font-size=\"20\">";
+
+  for (int i = 1; i < M; i++) {
+    path = (std::string(rows[i].code) + ", ");
+  }
+  
+  path = "</text>";*/
+
   std::string complete_svg = prefix_t + tiles + std::string("</svg>");
   //printf("%s\n", complete_svg.c_str());
   FILE* fp;
@@ -192,13 +201,6 @@ int main() {
   compute_valid_code_pairs(pairs_lut, N);
 
 
-  for (int r = 0; r < (1 << N); r++) {
-    printf("%d - ", r);
-    for (int c = 0; c < pairs_lut[r].size(); c++) {
-      printf("%d, ", pairs_lut[r][c]);
-    }
-    printf("\n");
-  }
 
 
   RowState rows[M+1];
@@ -210,7 +212,13 @@ int main() {
 
   rows[depth].set(0);
 
-  int count = 0;
+  int visited[256];
+
+  for (int i = 0; i < 256; i++) {
+    visited[i] = 0;
+  }
+
+  int64_t count = 0;
   while (depth != -1) {
     int next_code = rows[depth].get_next_code(pairs_lut);
     if (next_code == INVALID) {
@@ -225,14 +233,37 @@ int main() {
       if (next_code == 0) {
         count++;
         rows[depth + 1].set(next_code);
-        if (count == 500005) {
+        if (count == 534874) {
           write_svg(rows, M + 1, N, "box.svg");
           print_rows(rows, M + 1);
+        }
+        for (int i = 1; i < M+1; i++) {
+          visited[rows[i].code] = 1;
         }
       }
       depth--;
     }
   }
-  printf("total enumerations: %d\n", count);
+  //for (int i = 0; i < 256; i++) {
+  //  printf("%d ", visited[i]);
+  //}
+  //printf("\n");
+  FILE* fp;
+  fp = fopen("graph.dot", "w");
+  fprintf(fp, "digraph code_map {\n");
+  for (int r = 0; r < (1 << N); r++) {
+    //printf("%d - ", r);
+    for (int c = 0; c < pairs_lut[r].size(); c++) {
+      if ( r < pairs_lut[r][c] ) {
+        if (visited[r] == 1) {
+          fprintf(fp, "    %d -> %d;\n", r, pairs_lut[r][c]);
+        }
+      }
+    }
+    //printf("\n");
+  }
+  fprintf(fp, "}\n");
+  fclose(fp);
+  printf("total enumerations: %ld\n", count);
   return 0;
 }
